@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  # MediaMTX 服务器
+  mediamtx:
+    image: bluenviron/mediamtx:latest
+    container_name: mediamtx
+    ports:
+      - "1935:1935"     # RTMP
+      - "8554:8554"     # RTSP
+      - "8888:8888"     # HLS
+      - "8889:8889"     # WebRTC (HTTP)
+      - "8189:8189/udp" # WebRTC (UDP/ICE)
+      - "9997:9997"     # API
+    volumes:
+      - ./config/mediamtx.yml:/mediamtx.yml
+    restart: unless-stopped
+
+  # FFmpeg 低延迟转码（Opus → AAC）
+  transcoder:
+    image: jrottenberg/ffmpeg:6-alpine
+    container_name: transcoder
+    network_mode: "host"
+    volumes:
+      - ./transcode.sh:/transcode.sh:ro
+    entrypoint: ["/bin/sh", "/transcode.sh"]
+    restart: unless-stopped
+    depends_on:
+      - mediamtx
+

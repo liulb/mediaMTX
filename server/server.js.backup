@@ -1,0 +1,110 @@
+import express from "express";
+import cors from "cors";
+import { AccessToken } from "livekit-server-sdk";
+import { WebSocketServer } from "ws";
+import { spawn } from "child_process";
+import { createServer } from "http";
+
+const app = express();
+app.use(cors());
+
+// For local demo. If you want other devices on your LAN to access,
+// replace 127.0.0.1 with your machine LAN IP in the frontend or serverHost variable.
+const serverHost = "http://192.168.124.5"; // change to http://192.168.x.x if needed
+const rtmpBase = "rtmp://192.168.124.5/live";
+
+app.get("/url", (req, res) => {
+  const role = req.query.role || "doctor";
+  const streamKey = role === "doctor" ? "doctorStream" : "patientStream";
+
+  const pushUrl = `${rtmpBase}/${streamKey}`;
+  // mediamtx serves FLV at http://host:8889/live/<streamKey>.flv
+  const playUrl = `${serverHost}:8889/live/${streamKey}.flv`;
+
+  res.json({
+    role,
+    pushUrl,
+    playUrl,
+  });
+});
+
+app.get("/token", async (req, res) => {
+  try {
+    const room = req.query.room || "demo";
+    const identity = req.query.identity || "doctor";
+    const role = req.query.role || "doctor";
+
+    const at = new AccessToken("DEVKEY123", "SECRET123", { identity });
+    const grant = {
+      room,
+      roomJoin: true,
+      canPublish: true,
+      canSubscribe: true,
+      canPublishData: true,
+    };
+    at.addGrant(grant);
+
+    const jwt = await at.toJwt();
+    res.json({ token: jwt });
+  } catch (e) {
+    console.error("token generation error:", e);
+    res.status(500).json({ error: "token_generation_failed" });
+  }
+});
+
+const PORT = 3000;
+const server = createServer(app);
+
+// WebSocket 服务器，用于接收浏览器推流并转发到 MediaMTX
+const wss = new WebSocketServer({ server, path: "/stream" });
+
+wss.on("connection", (ws) => {
+  console.log("🔵 新的 WebSocket 连接建立");
+
+  // 使用 ffmpeg 将 WebM 流转换为 RTMP 推送到 MediaMTX
+  const ffmpeg = spawn("ffmpeg", [
+    "-i", "pipe:0",           // 从 stdin 读取
+    "-c:v", "libx264",        // 视频编码器
+    "-preset", "ultrafast",   // 编码速度
+    "-tune", "zerolatency",   // 低延迟
+    "-c:a", "aac",            // 音频编码器
+    "-f", "flv",              // 输出格式
+    `${rtmpBase}/doctorStream` // RTMP 推流地址
+  ]);
+
+  ffmpeg.on("error", (err) => {
+    console.error("❌ FFmpeg 错误:", err);
+  });
+
+  ffmpeg.stderr.on("data", (data) => {
+    // FFmpeg 日志（可选）
+    // console.log(`FFmpeg: ${data}`);
+  });
+
+  ffmpeg.on("close", (code) => {
+    console.log(`🔴 FFmpeg 进程退出，退出码: ${code}`);
+  });
+
+  ws.on("message", (data) => {
+    // 将浏览器发送的 WebM 数据写入 FFmpeg stdin
+    if (ffmpeg.stdin.writable) {
+      ffmpeg.stdin.write(data);
+    }
+  });
+
+  ws.on("close", () => {
+    console.log("🔴 WebSocket 连接关闭");
+    ffmpeg.stdin.end();
+    ffmpeg.kill();
+  });
+
+  ws.on("error", (error) => {
+    console.error("❌ WebSocket 错误:", error);
+    ffmpeg.kill();
+  });
+});
+
+server.listen(PORT, () => {
+  console.log(`✅ API 服务已启动：http://localhost:${PORT}`);
+  console.log(`✅ WebSocket 推流服务已启动：ws://localhost:${PORT}/stream`);
+});

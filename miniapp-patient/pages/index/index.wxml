@@ -1,0 +1,50 @@
+<view class="container">
+  <text class="role-text">角色：{{role}} (患者)</text>
+
+  <view class="video-section">
+    <text class="video-label">本地摄像头 (RTMP 推流)</text>
+    <live-pusher
+      id="pusher"
+      url="{{pushUrl}}"
+      mode="live"
+      autopush="true"
+      muted="{{false}}"
+      enable-mic="{{true}}"
+      enable-camera="{{true}}"
+      class="video"
+      bindstatechange="onPusherStateChange"
+      binderror="onPusherError">
+    </live-pusher>
+  </view>
+
+  <view class="video-section">
+    <text class="video-label">医生视频流 (RTMP 极速)</text>
+    <live-player
+      id="player"
+      src="{{playUrl}}"
+      mode="live"
+      autoplay="true"
+      muted="{{false}}"
+      sound-mode="speaker"
+      object-fit="contain"
+      min-cache="0.1"
+      max-cache="0.5"
+      class="video"
+      bindstatechange="onPlayerStateChange"
+      binderror="onPlayerError">
+    </live-player>
+  </view>
+
+  <!-- <button bindtap="switchRole" class="switch-btn">
+    切换为 {{role==='doctor'?'patient':'doctor'}}
+  </button> -->
+
+  <button bindtap="manualPlay" class="switch-btn" style="background-color: #52c41a;">
+    🔊 播放声音
+  </button>
+
+  <view class="status-text">
+    <text>推流: {{pushUrl}}</text>
+    <text>播放: {{playUrl}}</text>
+  </view>
+</view>

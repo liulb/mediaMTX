@@ -1,0 +1,50 @@
+# MediaMTX 配置文件
+# 文档: https://github.com/bluenviron/mediamtx
+
+# 日志级别
+logLevel: debug
+
+# API 配置
+api: true
+apiAddress: :9997
+
+# RTSP 服务器（用于协议转换）
+rtsp: true
+rtspAddress: :8554
+
+# RTMP 服务器
+rtmp: true
+rtmpAddress: :1935
+rtmpEncryption: "no"
+
+# WebRTC 服务器
+webrtc: true
+webrtcAddress: :8889
+webrtcICEServers:
+  - stun:stun.l.google.com:19302
+webrtcICEHostNAT1To1IPs: ['192.168.20.209']
+webrtcICEUDPMuxAddress: :8189
+webrtcICETCPMuxAddress: :8189
+
+# HLS 服务器
+hls: true
+hlsAddress: :8888
+hlsAlwaysRemux: true
+hlsVariant: mpegts    # 改回mpegts，兼容性最好
+hlsSegmentCount: 3
+hlsSegmentDuration: 1s
+
+# SRT服务器（可选，关闭以节省资源）
+srt: false
+
+# 路径配置
+paths:
+  # 医生流 - WebRTC 推流，MediaMTX 自动转 RTMP
+  doctorStream:
+    # 无需额外配置，MediaMTX 自动处理 WebRTC → RTMP 转换
+
+  # 患者流 - RTMP 推流(H.264+AAC)
+  patientStream:
+
+  # 默认配置
+  all:
